@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attendance WebSocket Client</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+        }
+        #messages { 
+            border: 1px solid #ccc; 
+            height: 400px; 
+            overflow-y: auto; 
+            padding: 10px; 
+            margin: 10px 0; 
+        }
+        #messages li { 
+            margin: 5px 0; 
+            padding: 5px; 
+            background: #f0f0f0; 
+            border-radius: 3px;
+        }
+        input[type="text"] { 
+            width: 300px; 
+            padding: 5px; 
+        }
+        button { 
+            padding: 5px 15px; 
+        }
+        .error { 
+            color: red; 
+        }
+        .success { 
+            color: green; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Attendance Events</h1>
+    
+    <div id="status">Connecting...</div>
+    
+    <ul id="messages"></ul>
+    
+    <div>
+        <input type="text" id="messageInput" placeholder="Enter message..." />
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const socket = new WebSocket("ws://" + window.location.host + "/ws/attendance/");
+        const messagesDiv = document.getElementById("messages");
+        const statusDiv = document.getElementById("status");
+
+        socket.onopen = function(e) {
+            console.log("WebSocket connection opened");
+            statusDiv.textContent = "Connected";
+            statusDiv.className = "success";
+        };
+
+        socket.onmessage = function(e) {
+            console.log("Raw message received:", e.data);
+            
+            try {
+                const data = JSON.parse(e.data);
+                console.log("Parsed data:", data);
+                
+                const li = document.createElement("li");
+                
+                // Handle different data structures
+                if (typeof data === 'object') {
+                    // If data is an object, display it as formatted JSON
+                    li.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    // If data is a simple value, display it directly
+                    li.textContent = data;
+                }
+                
+                messagesDiv.appendChild(li);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to bottom
+                
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+                const li = document.createElement("li");
+                li.textContent = "Error: " + e.data;
+                li.className = "error";
+                messagesDiv.appendChild(li);
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.log("WebSocket connection closed");
+            statusDiv.textContent = "Disconnected";
+            statusDiv.className = "error";
+        };
+
+        socket.onerror = function(e) {
+            console.error("WebSocket error:", e);
+            statusDiv.textContent = "Connection Error";
+            statusDiv.className = "error";
+        };
+
+        function sendMessage() {
+            const input = document.getElementById("messageInput");
+            if (input.value.trim() && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    "message": input.value
+                }));
+                input.value = "";
+            } else if (socket.readyState !== WebSocket.OPEN) {
+                alert("WebSocket is not connected");
+            }
+        }
+
+        // Allow sending message with Enter key
+        document.getElementById("messageInput").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
